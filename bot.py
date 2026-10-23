@@ -15,7 +15,7 @@ genai.configure(api_key=GEMINI_API_KEY)
 
 today_date = datetime.now().strftime("%Y-%m-%d")
 
-# دالة سحب أحدث الأبحاث الطبية الحقيقية من PubMed
+# دالة سحب أحدث الأبحاث الطبية من PubMed
 def fetch_latest_pubmed_papers():
     try:
         search_url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi"
@@ -30,7 +30,7 @@ def fetch_latest_pubmed_papers():
         id_list = res.get("esearchresult", {}).get("idlist", [])
         
         if not id_list:
-            return "لا توجد بيانات بحثية جديدة اليوم، اعتمد على المعطيات السريرية العامة."
+            return "No recent data found. Use general clinical intelligence."
 
         fetch_url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi"
         fetch_params = {
@@ -47,35 +47,41 @@ def fetch_latest_pubmed_papers():
             if title and abstract:
                 return f"Title: {title}\nAbstract: {abstract[:600]}..."
         
-        return "بحث حديث في مجال الذكاء الاصطناعي الطبي والتشخيص السريري."
+        return "Recent AI in medical diagnosis research."
     except Exception as e:
         print("PubMed fetch error:", e)
-        return "تعذر جلب البحث اليوم، اعتمد على أحدث التقنيات السريرية."
+        return "Using standard clinical AI metrics."
 
 pubmed_context = fetch_latest_pubmed_papers()
 
 prompt = f"""
-أنت مساعد ذكي ومحترف. اليوم هو {today_date}.
-قم إعداد تقرير يومي منظم، منسق، ومرتب تماماً في **4 أقسام رئيسية** كالتالي:
+[SYSTEM: NEXUS_AI_CORE]
+[DATE: {today_date}]
+[MODE: FUTURISTIC_NEO_UI]
+
+أنت مستشار ذكي برتبة نظام ذكاء اصطناعي مستقبلي. قم بإعداد تقرير يومي منظم ومقسم بدقة إلى **4 أقسام رئيسية** بالأسلوب التالي:
 
 1. 🤖 AI & Machine Learning Trends
 2. 🩺 AI in Medicine & Clinical Practice
 3. 📈 Digital & Medical Marketing
-4. 🔬 PubMed Research Spotlight (أحدث الأبحاث الطبية)
+4. 🔬 PubMed Research Spotlight
 
 بيانات البحث العلمي المسحوبة اليوم من PubMed للقسم الرابع:
 {pubmed_context}
 
-شروط التنسيق والكتابة الصارمة جداً لمنع أي تداخل أو نص "سايح":
-- ابدأ التقرير النهائي فوراً بهذه الروشة في السطر الأول تماماً:
-📅 تقرير المستشار الذكي | التاريخ: {today_date}
-- ممنوع كتابة فقرات طويلة ومترابطة؛ اجعل كل قسم مكوناً من **نقاط محددة وصغيرة (Bullet Points)** متبوعة بإيموجي ومسافات واضحة مريحة للعين.
-- في القسم الرابع (🔬 PubMed Research Spotlight)، نظّم الملخص بهذه الطريقة تماماً:
-  • 📌 عنوان البحث: [...]
-  • 💡 الفكرة الأساسية: [...]
-  • 🎯 النتيجة الإكلينيكية: [...]
-- الشرح والتحليل يكون باللغة العربية الفصحى السلسة، مع إبقاء الـ Medical & Technical Terms باللغة الإنجليزية حصراً داخل الجمل.
-- لا تزيد إجمالي الكلمات عن 2500 حرف ليكون التقرير مركزاً وخفيفاً وخالياً من الحشو.
+شروط التنسيق الفيوتشرستيك الصارمة:
+- ابدأ التقرير بالكامل بهذا الشكل السيبراني الثابت في السطر الأول تماماً بدون أي حرف قبله:
+⚡ // [CYBER_BRIEFING] - DATE: {today_date}
+
+- ممنوع استخدام علامة الشباك (#) أو النجوم المزدوجة (**) أو الماركداون القديم نهائياً.
+- استخدم أقواس سيبرانية وتصميم نقي ومرتب للعين (مثل استخدام ◼ ، ─── ، 『 』 ، ⚡).
+- اجعل كل قسم مكوناً من نقاط واضحة ومباشرة ومفصولة بمسافات نظيفة.
+- في القسم الرابع (🔬 PubMed Research Spotlight)، نظّم البيانات كالتالي:
+  ◼ [Research_Title]: [...]
+  ◼ [Core_Idea]: [...]
+  ◼ [Clinical_Outcome]: [...]
+- الشرح باللغة العربية الفصحى السلسة والمفهومة، مع إبقاء الـ Medical & Technical Terms باللغة الإنجليزية بوضوح.
+- اجعل التقرير مكثفاً وعملياً وخالياً من الحشو في حدود 2500 حرف.
 """
 
 def generate_report():
@@ -91,12 +97,12 @@ def generate_report():
             model = genai.GenerativeModel(model_name)
             response = model.generate_content(
                 prompt,
-                generation_config={"temperature": 0.6} # تقليل العشوائية لضمان التنسيق الدقيق
+                generation_config={"temperature": 0.6}
             )
             text = response.text
             
-            if "📅" in text:
-                text = "📅" + text.rsplit("📅", 1)[-1]
+            if "CYBER_BRIEFING" in text:
+                text = "⚡ // [CYBER_BRIEFING]" + text.rsplit("CYBER_BRIEFING", 1)[-1]
                 
             return text.strip()
         except Exception as e:
@@ -114,15 +120,15 @@ def send_telegram_message(text):
         requests.post(url, json=payload)
 
 def clean_text_for_audio(text):
-    # تنظيف الرموز لضمان قراءة صوتية سلسة وبدون تلعثم
-    cleaned = re.sub(r'[#*`_~—\-+=|•🔹🔬💡🛠️🚀🤖🩺📈📅📱1️⃣2️⃣3️⃣4️⃣•📌]', ' ', text)
+    # تنظيف الرموز السيبرانية لكي يقرأ المعلق الصوتي النص بطلاقة وبدون تلعثم
+    cleaned = re.sub(r'[#*`_~—\-+=|•⚡//\[\]{}◼───『』1️⃣2️⃣3️⃣4️⃣]', ' ', text)
     return cleaned
 
 async def create_audio(text, filename="briefing.mp3"):
     clean_text = clean_text_for_audio(text)
-    # استخدام صوت عصبي فائق النقاء والوضوح واحترافي جداً
-    voice = "ar-EG-SalmaNeural"
-    communicate = edge_tts.Communicate(clean_text, voice, rate="+0%")
+    # صوت نسائي احترافي فائق الذكاء في دمج الإنجليزي والعربي بطلاقة ونبرة هادئة
+    voice = "ar-SA-ZahraNeural"
+    communicate = edge_tts.Communicate(clean_text, voice, rate="+2%")
     await communicate.save(filename)
 
 def send_telegram_audio(filename="briefing.mp3"):
@@ -131,19 +137,19 @@ def send_telegram_audio(filename="briefing.mp3"):
         files = {"audio": audio_file}
         data = {
             "chat_id": TELEGRAM_CHAT_ID,
-            "title": f"الخلاصة الصوتية - {today_date}",
-            "performer": "Smart Consultant AI",
-            "caption": "🎧 الملخص الصوتي الجديد بصوت أوضح ومنسق بالكامل!"
+            "title": f"Cyber Briefing - {today_date}",
+            "performer": "NEXUS AI",
+            "caption": "🎧 البودكاست السيبراني اليومي جاهز للاستماع بنبرة مطورة!"
         }
         requests.post(url, data=data, files=files)
 
 if __name__ == "__main__":
     report_text = generate_report()
     
-    # 1. إرسال التقرير المكتوب منسقاً في 4 أقسام
+    # 1. إرسال التقرير المكتوب بالستايل الفيوتشرستيك
     send_telegram_message(report_text)
     
-    # 2. توليد وإرسال التسجيل الصوتي بالصوت الجديد المطور
-    print("Generating upgraded audio briefing...")
+    # 2. توليد وإرسال التسجيل الصوتي بالصوت الجديد الاحترافي
+    print("Generating futuristic audio briefing...")
     asyncio.run(create_audio(report_text))
     send_telegram_audio()

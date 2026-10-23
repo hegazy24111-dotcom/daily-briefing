@@ -117,39 +117,48 @@ def send_telegram_message(text):
     for i in range(0, len(text), max_length):
         chunk = text[i:i + max_length]
         payload = {"chat_id": TELEGRAM_CHAT_ID, "text": chunk}
-        requests.post(url, json=payload)
+        res = requests.post(url, json=payload)
+        print("Telegram message response:", res.json())
 
 def clean_text_for_audio(text):
-    # تنظيف الرموز السيبرانية لكي يقرأ المعلق الصوتي النص بطلاقة وبدون تلعثم
     cleaned = re.sub(r'[#*`_~—\-+=|•⚡//\[\]{}◼───『』1️⃣2️⃣3️⃣4️⃣]', ' ', text)
     return cleaned
 
 async def create_audio(text, filename="briefing.mp3"):
     clean_text = clean_text_for_audio(text)
-    # صوت نسائي احترافي فائق الذكاء في دمج الإنجليزي والعربي بطلاقة ونبرة هادئة
+    if not clean_text.strip():
+        clean_text = "تقرير المستشار الذكي اليومي."
     voice = "ar-SA-ZahraNeural"
     communicate = edge_tts.Communicate(clean_text, voice, rate="+2%")
     await communicate.save(filename)
 
 def send_telegram_audio(filename="briefing.mp3"):
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendAudio"
+    if not os.path.exists(filename):
+        print("Audio file does not exist.")
+        return
     with open(filename, "rb") as audio_file:
         files = {"audio": audio_file}
         data = {
             "chat_id": TELEGRAM_CHAT_ID,
             "title": f"Cyber Briefing - {today_date}",
             "performer": "NEXUS AI",
-            "caption": "🎧 البودكاست السيبراني اليومي جاهز للاستماع بنبرة مطورة!"
+            "caption": "🎧 البودكاست السيبراني اليومي جاهز للاستماع!"
         }
-        requests.post(url, data=data, files=files)
+        res = requests.post(url, data=data, files=files)
+        print("Audio response:", res.json())
 
 if __name__ == "__main__":
     report_text = generate_report()
     
-    # 1. إرسال التقرير المكتوب بالستايل الفيوتشرستيك
+    # 1. إرسال التقرير المكتوب أولاً وضمان وصوله بنجاح تام
+    print("Sending text report...")
     send_telegram_message(report_text)
     
-    # 2. توليد وإرسال التسجيل الصوتي بالصوت الجديد الاحترافي
-    print("Generating futuristic audio briefing...")
-    asyncio.run(create_audio(report_text))
-    send_telegram_audio()
+    # 2. محاولة توليد وإرسال الصوت مع حماية كاملة لتجنب إيقاف السكربت لو حدث حظر للشبكة
+    try:
+        print("Generating futuristic audio briefing...")
+        asyncio.run(create_audio(report_text))
+        send_telegram_audio()
+    except Exception as audio_err:
+        print(f"Audio generation skipped gracefully due to network/server restriction: {audio_err}")

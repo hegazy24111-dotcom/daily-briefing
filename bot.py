@@ -35,9 +35,9 @@ prompt = f"""
 ركز اليوم بشكل خاص على: ({todays_theme}).
 
 شروط الكتابة الهامة جداً:
-- ابدأ ردك فوراً وبشكل مباشر بالسطر التالي دون أي مقدمات أو تفكير مسبق:
+- ابدأ التقرير النهائي بهذه الكلمة الدلالية في سطر مستقل:
+===START_REPORT===
 📅 تقرير المستشار الذكي | التاريخ: {today_date}
-- لا تكتب أي مسودات أو خطوات تفكير أو مراجعة باللغة الإنجليزية قبل التقرير؛ أخرج التقرير النهائي فقط.
 - تجنب الكلام العام الإنشائي المكرر؛ قدم في كل قسم: (أداة عملية محددة، أو تقنية دقيقة، أو سيناريو تطبيقي/Case Study، أو نصيحة قابلة للتنفيذ فوراً).
 - الشرح والتحليل يكون باللغة العربية الفصحى السلسة والمفهومة.
 - أي Medical Term أو Technical Term (مثل Machine Learning, Clinical Diagnosis, Medical Marketing, Target Audience, ROI) يجب أن تبقى باللغة الإنجليزية حصراً في نص الجملة.
@@ -46,7 +46,6 @@ prompt = f"""
 """
 
 def generate_report():
-    # استبعاد موديلات التفكير المطول (thinking) لضمان إخراج التقرير النهائي مباشرة
     available_models = [
         m.name for m in genai.list_models() 
         if 'generateContent' in m.supported_generation_methods and 'thinking' not in m.name.lower()
@@ -65,9 +64,11 @@ def generate_report():
             print(f"Success with {model_name}!")
             text = response.text
             
-            # فلتر ذكي: لو الموديل كتب أي تفكير قبل علامة 📅، الكود هيقصه ويبعت التقرير الصافي بس!
+            # قطع النص من آخر ظهور لعلامة 📅 أو ===START_REPORT=== للتخلص من أي مسودات تفكير سابقة نهائياً
             if "📅" in text:
-                text = "📅" + text.split("📅", 1)[1]
+                text = "📅" + text.rsplit("📅", 1)[-1]
+            elif "===START_REPORT===" in text:
+                text = text.rsplit("===START_REPORT===", 1)[-1]
                 
             return text.strip()
         except Exception as e:

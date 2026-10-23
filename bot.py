@@ -57,9 +57,9 @@ pubmed_context = fetch_latest_pubmed_papers()
 prompt = f"""
 [SYSTEM: NEXUS_AI_CORE]
 [DATE: {today_date}]
-[MODE: FUTURISTIC_NEO_UI]
+[MODE: FUTURISTIC_NEO_UI_RICH]
 
-أنت مستشار ذكي برتبة نظام ذكاء اصطناعي مستقبلي. قم بإعداد تقرير يومي منظم ومقسم بدقة إلى **4 أقسام رئيسية** بالأسلوب التالي:
+أنت مستشار ذكي برتبة نظام ذكاء اصطناعي مستقبلي. قم بإعداد تقرير يومي احترافي، ومقسم بدقة إلى **4 أقسام رئيسية** بالأسلوب التالي:
 
 1. 🤖 AI & Machine Learning Trends
 2. 🩺 AI in Medicine & Clinical Practice
@@ -69,19 +69,19 @@ prompt = f"""
 بيانات البحث العلمي المسحوبة اليوم من PubMed للقسم الرابع:
 {pubmed_context}
 
-شروط التنسيق الفيوتشرستيك الصارمة:
+شروط المحتوى والتنسيق الصارمة:
 - ابدأ التقرير بالكامل بهذا الشكل السيبراني الثابت في السطر الأول تماماً بدون أي حرف قبله:
 ⚡ // [CYBER_BRIEFING] - DATE: {today_date}
 
 - ممنوع استخدام علامة الشباك (#) أو النجوم المزدوجة (**) أو الماركداون القديم نهائياً.
-- استخدم أقواس سيبرانية وتصميم نقي ومرتب للعين (مثل استخدام ◼ ، ─── ، 『 』 ، ⚡).
-- اجعل كل قسم مكوناً من نقاط واضحة ومباشرة ومفصولة بمسافات نظيفة.
-- في القسم الرابع (🔬 PubMed Research Spotlight)، نظّم البيانات كالتالي:
+- استخدم أقواس سيبرانية وتصميم نقي ومرتب (مثل استخدام ◼ ، ─── ، 『 』 ، ⚡).
+- **تفاصيل أعمق لكل نقطة:** اجعل كل نقطة في الأقسام الثلاثة الأولى غنية بالتفاصيل وتحتوي على (اسم التقنية، فكرتها باختصار، وتطبيقها العملي أو فائدتها المباشرة) في جملتين أو ثلاث متصلة ومفهومة، وليست مجرد رؤوس أقلام مقتضبة.
+- في القسم الرابع (🔬 PubMed Research Spotlight)، نظّم البيانات بتفاصيل كافية ومفيدة:
   ◼ [Research_Title]: [...]
-  ◼ [Core_Idea]: [...]
-  ◼ [Clinical_Outcome]: [...]
-- الشرح باللغة العربية الفصحى السلسة والمفهومة، مع إبقاء الـ Medical & Technical Terms باللغة الإنجليزية بوضوح.
-- اجعل التقرير مكثفاً وعملياً وخالياً من الحشو في حدود 2500 حرف.
+  ◼ [Core_Idea]: [اشرح الفكرة والهدف من الدراسة بتفصيل عملي]
+  ◼ [Clinical_Outcome]: [وضح النتيجة الإكلينيكية وكيف يستفيد منها الممارس الطبي]
+- الشرح باللغة العربية الفصحى السلسة والمفهومة، مع إبقاء الـ Medical & Technical Terms باللغة الإنجليزية بوضوح داخل الجمل.
+- حافظ على أن يكون التقرير شاملاً ومرتباً في حدود 3000 حرف كحد أقصى.
 """
 
 def generate_report():
@@ -97,7 +97,7 @@ def generate_report():
             model = genai.GenerativeModel(model_name)
             response = model.generate_content(
                 prompt,
-                generation_config={"temperature": 0.6}
+                generation_config={"temperature": 0.65}
             )
             text = response.text
             
@@ -143,7 +143,7 @@ def send_telegram_audio(filename="briefing.mp3"):
             "chat_id": TELEGRAM_CHAT_ID,
             "title": f"Cyber Briefing - {today_date}",
             "performer": "NEXUS AI",
-            "caption": "🎧 البودكاست السيبراني اليومي جاهز للاستماع!"
+            "caption": "🎧 البودكاست السيبراني التفصيلي جاهز للاستماع!"
         }
         res = requests.post(url, data=data, files=files)
         print("Audio response:", res.json())
@@ -151,14 +151,14 @@ def send_telegram_audio(filename="briefing.mp3"):
 if __name__ == "__main__":
     report_text = generate_report()
     
-    # 1. إرسال التقرير المكتوب أولاً وضمان وصوله بنجاح تام
+    # 1. إرسال التقرير المكتوب التفصيلي أولاً
     print("Sending text report...")
     send_telegram_message(report_text)
     
-    # 2. محاولة توليد وإرسال الصوت مع حماية كاملة لتجنب إيقاف السكربت لو حدث حظر للشبكة
+    # 2. توليد وإرسال الصوت مع حماية كاملة ضد الحظر
     try:
         print("Generating futuristic audio briefing...")
         asyncio.run(create_audio(report_text))
         send_telegram_audio()
     except Exception as audio_err:
-        print(f"Audio generation skipped gracefully due to network/server restriction: {audio_err}")
+        print(f"Audio generation skipped gracefully: {audio_err}")

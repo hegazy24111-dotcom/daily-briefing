@@ -7,9 +7,9 @@ TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 
-# إعداد جيميناي بالموديل الجديد
+# إعداد جيميناي بالموديل الأحدث المطلوب في رسالة الخطأ
 genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel('gemini-2.0-flash')
+model = genai.GenerativeModel('gemini-3.0-flash')
 
 prompt = """
 أنت مساعد ذكي ومحترف. قم بإعداد تقرير يومي مختصر ومنظم ومقسّم إلى 3 أقسام رئيسية كالتالي:
@@ -27,8 +27,7 @@ def send_telegram_message(text):
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     payload = {
         "chat_id": TELEGRAM_CHAT_ID,
-        "text": text,
-        "parse_mode": "Markdown"
+        "text": text
     }
     response = requests.post(url, json=payload)
     return response.json()
@@ -36,4 +35,5 @@ def send_telegram_message(text):
 if __name__ == "__main__":
     response = model.generate_content(prompt)
     report_text = response.text
-    send_telegram_message(report_text)
+    res = send_telegram_message(report_text)
+    print(res)

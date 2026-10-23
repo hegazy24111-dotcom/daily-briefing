@@ -1,7 +1,11 @@
 import os
+import re
+import asyncio
 import requests
+import xml.etree.ElementTree as ET
 from datetime import datetime
 import google.generativeai as genai
+import edge_tts
 
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
@@ -10,39 +14,65 @@ GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 genai.configure(api_key=GEMINI_API_KEY)
 
 today_date = datetime.now().strftime("%Y-%m-%d")
-day_of_year = datetime.now().timetuple().tm_yday
 
-daily_themes = [
-    "أدوات عملية جديدة، تطبيقات التشخيص السريري، واستراتيجيات الاستحواذ على المرضى (Patient Acquisition)",
-    "تحليل حالات عملية (Case Studies)، الذكاء الاصطناعي في الأشعة والتحاليل، وبناء العلامة التجارية للأطباء (Personal Branding)",
-    "الأتمتة الذكية (Workflow Automation)، الطب التنبؤي (Predictive Medicine)، وكتابة المحتوى الطبي التسويقي",
-    "تقنيات الـ Large Language Models، تقليل الأخطاء الطبية، وتحسين معدل التحويل في الإعلانات الطبية (Conversion Rate Optimization)",
-    "أخلاقيات ودقة الـ AI، متابعة المرضى عن بُعد (Telemedicine & Remote Monitoring)، واستراتيجيات الاحتفاظ بالمرضى (Patient Retention)",
-    "مهارات الـ Prompt Engineering المتقدمة، الذكاء الاصطناعي في الصيدلة والأدوية، والتسويق عبر الفيديو القصير للعيادات",
-    "تحليل البيانات الضخمة، إدارة العيادات والمستشفيات ذكياً، وقياس العائد على الاستثمار (ROI & Analytics) في الحملات الطبية"
-]
+# دالة سحب أحدث الأبحاث الطبية الحقيقية من PubMed
+def fetch_latest_pubmed_papers():
+    try:
+        search_url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi"
+        search_params = {
+            "db": "pubmed",
+            "term": "(artificial intelligence[Title/Abstract]) AND (clinical diagnosis[Title/Abstract] OR medicine[Title/Abstract])",
+            "sort": "date",
+            "retmax": 1,
+            "retmode": "json"
+        }
+        res = requests.get(search_url, params=search_params, timeout=10).json()
+        id_list = res.get("esearchresult", {}).get("idlist", [])
+        
+        if not id_list:
+            return "لا توجد بيانات بحثية جديدة اليوم، اعتمد على المعطيات السريرية العامة."
 
-todays_theme = daily_themes[day_of_year % len(daily_themes)]
+        fetch_url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi"
+        fetch_params = {
+            "db": "pubmed",
+            "id": ",".join(id_list),
+            "retmode": "xml"
+        }
+        xml_data = requests.get(fetch_url, params=fetch_params, timeout=10).text
+        root = ET.fromstring(xml_data)
+        
+        for article in root.findall(".//PubmedArticle"):
+            title = article.findtext(".//ArticleTitle", default="")
+            abstract = " ".join([elem.text for elem in article.findall(".//AbstractText") if elem.text])
+            if title and abstract:
+                return f"Title: {title}\nAbstract: {abstract[:600]}..."
+        
+        return "بحث حديث في مجال الذكاء الاصطناعي الطبي والتشخيص السريري."
+    except Exception as e:
+        print("PubMed fetch error:", e)
+        return "تعذر جلب البحث اليوم، اعتمد على أحدث التقنيات السريرية."
+
+pubmed_context = fetch_latest_pubmed_papers()
 
 prompt = f"""
-أنت مستشار ذكي ومحترف. اليوم هو {today_date}.
-قم بإعداد تقرير يومي متجدد ومبتكر ومقسّم إلى 3 أقسام رئيسية كالتالي:
+أنت مساعد ذكي ومحترف. اليوم هو {today_date}.
+قم بإعداد تقرير يومي منظم ومقسّم بدقة إلى **4 أقسام رئيسية** كالتالي:
+
 1. 🤖 AI & Machine Learning Trends
 2. 🩺 AI in Medicine & Clinical Practice
 3. 📈 Digital & Medical Marketing
+4. 🔬 أحدث الأبحاث الطبية (PubMed Research Spotlight)
 
-زاوية التركيز الخاصة بيوم ({today_date}) لمنع التكرار:
-ركز اليوم بشكل خاص على: ({todays_theme}).
+بيانات البحث العلمي المسحوبة اليوم من PubMed لاستخدامها حصرياً في القسم الرابع:
+{pubmed_context}
 
 شروط الكتابة الهامة جداً:
-- ابدأ التقرير النهائي بهذه الكلمة الدلالية في سطر مستقل:
-===START_REPORT===
+- ابدأ التقرير النهائي فوراً بهذا السطر دون أي مقدمات أو مسودات:
 📅 تقرير المستشار الذكي | التاريخ: {today_date}
-- تجنب الكلام العام الإنشائي المكرر؛ قدم في كل قسم: (أداة عملية محددة، أو تقنية دقيقة، أو سيناريو تطبيقي/Case Study، أو نصيحة قابلة للتنفيذ فوراً).
-- الشرح والتحليل يكون باللغة العربية الفصحى السلسة والمفهومة.
-- أي Medical Term أو Technical Term (مثل Machine Learning, Clinical Diagnosis, Medical Marketing, Target Audience, ROI) يجب أن تبقى باللغة الإنجليزية حصراً في نص الجملة.
-- تجنب تماماً أي تفاصيل معقدة تخص الشركات الناشئة أو الـ Startups، واجعل التركيز عملي ومباشر.
-- لا تستخدم رموز الماركداون المعقدة، ونسّق العناوين والنقاط بالإيموجي بشكل أنيق ومريح للعين، بحيث لا يتجاوز التقرير 2500 حرف.
+- حافظ على الأقسام الثلاثة الأولى بنفس النمط العملي والمباشر والمختصر.
+- في القسم الرابع (🔬 أحدث الأبحاث الطبية): قم بتلخيص البحث المرفق أعلاه بأسلوب مبسط يوضح الفكرة والنتيجة الإكلينيكية المستفادة منه للأطباء والممارسين.
+- الشرح والتحليل يكون باللغة العربية الفصحى السلسة والمفهومة، مع إبقاء الـ Medical & Technical Terms باللغة الإنجليزية حصراً داخل الجمل.
+- لا تستخدم رموز الماركداون المعقدة، ونسّق العناوين بالإيموجي، بحيث لا يتجاوز إجمالي التقرير 3000 حرف.
 """
 
 def generate_report():
@@ -51,7 +81,6 @@ def generate_report():
         if 'generateContent' in m.supported_generation_methods and 'thinking' not in m.name.lower()
     ]
     available_models.sort(reverse=True)
-    print("All available models:", available_models)
 
     for model_name in available_models:
         try:
@@ -59,37 +88,58 @@ def generate_report():
             model = genai.GenerativeModel(model_name)
             response = model.generate_content(
                 prompt,
-                generation_config={"temperature": 0.85}
+                generation_config={"temperature": 0.7}
             )
-            print(f"Success with {model_name}!")
             text = response.text
             
-            # قطع النص من آخر ظهور لعلامة 📅 أو ===START_REPORT=== للتخلص من أي مسودات تفكير سابقة نهائياً
+            # قص أي تفكير سابق وأخذ التقرير النهائي الصافي فقط
             if "📅" in text:
                 text = "📅" + text.rsplit("📅", 1)[-1]
-            elif "===START_REPORT===" in text:
-                text = text.rsplit("===START_REPORT===", 1)[-1]
                 
             return text.strip()
         except Exception as e:
             print(f"Skipped {model_name} due to error: {e}")
             continue
             
-    raise Exception("No working model found in the list.")
+    raise Exception("No working model found.")
 
 def send_telegram_message(text):
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     max_length = 4000
-    
     for i in range(0, len(text), max_length):
         chunk = text[i:i + max_length]
-        payload = {
+        payload = {"chat_id": TELEGRAM_CHAT_ID, "text": chunk}
+        requests.post(url, json=payload)
+
+def clean_text_for_audio(text):
+    cleaned = re.sub(r'[#*`_~—\-+=|•🔹🔬💡🛠️🚀🤖🩺📈📅📱1️⃣2️⃣3️⃣4️⃣]', ' ', text)
+    return cleaned
+
+async def create_audio(text, filename="briefing.mp3"):
+    clean_text = clean_text_for_audio(text)
+    voice = "ar-EG-ShakirNeural"
+    communicate = edge_tts.Communicate(clean_text, voice, rate="+5%")
+    await communicate.save(filename)
+
+def send_telegram_audio(filename="briefing.mp3"):
+    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendAudio"
+    with open(filename, "rb") as audio_file:
+        files = {"audio": audio_file}
+        data = {
             "chat_id": TELEGRAM_CHAT_ID,
-            "text": chunk
+            "title": f"الخلاصة الصوتية - {today_date}",
+            "performer": "Smart Consultant AI",
+            "caption": "🎧 ملخص تقرير اليوم الصوتي جاهز للاستماع!"
         }
-        response = requests.post(url, json=payload)
-        print(f"Part {i//max_length + 1} response:", response.json())
+        requests.post(url, data=data, files=files)
 
 if __name__ == "__main__":
     report_text = generate_report()
+    
+    # 1. إرسال التقرير المكتوب (الـ 4 أقسام)
     send_telegram_message(report_text)
+    
+    # 2. توليد وإرسال التسجيل الصوتي بعده مباشرة
+    print("Generating audio briefing...")
+    asyncio.run(create_audio(report_text))
+    send_telegram_audio()

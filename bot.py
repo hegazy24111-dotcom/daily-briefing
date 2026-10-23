@@ -2,14 +2,25 @@ import os
 import requests
 import google.generativeai as genai
 
-# جلب الأسرار من بيئة جيثب بأمان
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 
-# إعداد جيميناي بالموديل الأحدث المطلوب في رسالة الخطأ
 genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel('gemini-3.0-flash')
+
+# البحث تلقائياً عن الموديلات المتاحة والمدعومة في حسابك لتجنب خطأ 404 نهائياً
+available_models = [
+    m.name for m in genai.list_models() 
+    if 'generateContent' in m.supported_generation_methods
+]
+
+print("Available models:", available_models)
+
+# اختيار موديل flash المتاح تلقائياً أو أول موديل شغال في القائمة
+selected_model = next((m for m in available_models if 'flash' in m), available_models[0])
+print("Using model:", selected_model)
+
+model = genai.GenerativeModel(selected_model)
 
 prompt = """
 أنت مساعد ذكي ومحترف. قم بإعداد تقرير يومي مختصر ومنظم ومقسّم إلى 3 أقسام رئيسية كالتالي:
@@ -36,4 +47,4 @@ if __name__ == "__main__":
     response = model.generate_content(prompt)
     report_text = response.text
     res = send_telegram_message(report_text)
-    print(res)
+    print("Telegram response:", res)

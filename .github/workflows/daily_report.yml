@@ -2,9 +2,8 @@ name: Daily Telegram Briefing
 
 on:
   schedule:
-    # يعمل يومياً الساعة 8:00 صباحاً بتوقيت UTC (يعني 10:00 صباحاً بتوقيت القاهرة)
     - cron: '0 8 * * *'
-  workflow_dispatch: # يسمح لك بتشغيله يدوياً في أي وقت للتجربة
+  workflow_dispatch:
 
 jobs:
   run-bot:
@@ -20,7 +19,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install requests google-generativeai
+          pip install requests google-generativeai edge-tts
 
       - name: Run script
         env:

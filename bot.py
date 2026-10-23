@@ -9,7 +9,6 @@ GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 
 genai.configure(api_key=GEMINI_API_KEY)
 
-# تحديد تاريخ اليوم وزاوية تركيز مختلفة لكل يوم في الأسبوع لمنع التكرار نهائياً
 today_date = datetime.now().strftime("%Y-%m-%d")
 day_of_year = datetime.now().timetuple().tm_yday
 
@@ -35,18 +34,22 @@ prompt = f"""
 زاوية التركيز الخاصة بيوم ({today_date}) لمنع التكرار:
 ركز اليوم بشكل خاص على: ({todays_theme}).
 
-شروط الكتابة الهامة:
+شروط الكتابة الهامة جداً:
+- ابدأ ردك فوراً وبشكل مباشر بالسطر التالي دون أي مقدمات أو تفكير مسبق:
+📅 تقرير المستشار الذكي | التاريخ: {today_date}
+- لا تكتب أي مسودات أو خطوات تفكير أو مراجعة باللغة الإنجليزية قبل التقرير؛ أخرج التقرير النهائي فقط.
 - تجنب الكلام العام الإنشائي المكرر؛ قدم في كل قسم: (أداة عملية محددة، أو تقنية دقيقة، أو سيناريو تطبيقي/Case Study، أو نصيحة قابلة للتنفيذ فوراً).
 - الشرح والتحليل يكون باللغة العربية الفصحى السلسة والمفهومة.
 - أي Medical Term أو Technical Term (مثل Machine Learning, Clinical Diagnosis, Medical Marketing, Target Audience, ROI) يجب أن تبقى باللغة الإنجليزية حصراً في نص الجملة.
 - تجنب تماماً أي تفاصيل معقدة تخص الشركات الناشئة أو الـ Startups، واجعل التركيز عملي ومباشر.
-- لا تستخدم رموز الماركداون المعقدة، ونسّق العناوين والنقاط بالإيموجي بشكل أنيق ومريح للعين، بحيث لا يتجاوز التقرير 3000 حرف.
+- لا تستخدم رموز الماركداون المعقدة، ونسّق العناوين والنقاط بالإيموجي بشكل أنيق ومريح للعين، بحيث لا يتجاوز التقرير 2500 حرف.
 """
 
 def generate_report():
+    # استبعاد موديلات التفكير المطول (thinking) لضمان إخراج التقرير النهائي مباشرة
     available_models = [
         m.name for m in genai.list_models() 
-        if 'generateContent' in m.supported_generation_methods
+        if 'generateContent' in m.supported_generation_methods and 'thinking' not in m.name.lower()
     ]
     available_models.sort(reverse=True)
     print("All available models:", available_models)
@@ -57,10 +60,16 @@ def generate_report():
             model = genai.GenerativeModel(model_name)
             response = model.generate_content(
                 prompt,
-                generation_config={"temperature": 0.85} # رفع درجة التنوع والابتكار يومياً
+                generation_config={"temperature": 0.85}
             )
             print(f"Success with {model_name}!")
-            return response.text
+            text = response.text
+            
+            # فلتر ذكي: لو الموديل كتب أي تفكير قبل علامة 📅، الكود هيقصه ويبعت التقرير الصافي بس!
+            if "📅" in text:
+                text = "📅" + text.split("📅", 1)[1]
+                
+            return text.strip()
         except Exception as e:
             print(f"Skipped {model_name} due to error: {e}")
             continue

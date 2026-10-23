@@ -8,20 +8,6 @@ GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 
 genai.configure(api_key=GEMINI_API_KEY)
 
-# البحث تلقائياً عن الموديلات المتاحة والمدعومة في حسابك لتجنب خطأ 404 نهائياً
-available_models = [
-    m.name for m in genai.list_models() 
-    if 'generateContent' in m.supported_generation_methods
-]
-
-print("Available models:", available_models)
-
-# اختيار موديل flash المتاح تلقائياً أو أول موديل شغال في القائمة
-selected_model = next((m for m in available_models if 'flash' in m), available_models[0])
-print("Using model:", selected_model)
-
-model = genai.GenerativeModel(selected_model)
-
 prompt = """
 أنت مساعد ذكي ومحترف. قم بإعداد تقرير يومي مختصر ومنظم ومقسّم إلى 3 أقسام رئيسية كالتالي:
 1. 🤖 AI & Machine Learning Trends
@@ -34,6 +20,29 @@ prompt = """
 - تجنب تماماً أي تفاصيل معقدة تخص الشركات الناشئة أو الـ Startups، واجعل التركيز عملي ومباشر.
 """
 
+def generate_report():
+    # جلب كل الموديلات المتاحة وترتيبها من الأحدث للأقدم
+    available_models = [
+        m.name for m in genai.list_models() 
+        if 'generateContent' in m.supported_generation_methods
+    ]
+    available_models.sort(reverse=True)
+    print("All available models:", available_models)
+
+    # تجربة الموديلات بالترتيب وتخطي أي موديل متوقف للمستخدمين الجدد
+    for model_name in available_models:
+        try:
+            print(f"Trying model: {model_name}...")
+            model = genai.GenerativeModel(model_name)
+            response = model.generate_content(prompt)
+            print(f"Success with {model_name}!")
+            return response.text
+        except Exception as e:
+            print(f"Skipped {model_name} due to error: {e}")
+            continue
+            
+    raise Exception("No working model found in the list.")
+
 def send_telegram_message(text):
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     payload = {
@@ -44,7 +53,6 @@ def send_telegram_message(text):
     return response.json()
 
 if __name__ == "__main__":
-    response = model.generate_content(prompt)
-    report_text = response.text
+    report_text = generate_report()
     res = send_telegram_message(report_text)
     print("Telegram response:", res)

@@ -1,12 +1,8 @@
 import os
-import re
-import asyncio
-import urllib.parse
 import requests
 import xml.etree.ElementTree as ET
 from datetime import datetime
 import google.generativeai as genai
-import edge_tts
 
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
@@ -58,9 +54,9 @@ pubmed_context = fetch_latest_pubmed_papers()
 prompt = f"""
 [SYSTEM: NEXUS_AI_CORE]
 [DATE: {today_date}]
-[MODE: FUTURISTIC_NEO_UI_RICH_WITH_VISUAL]
+[MODE: FUTURISTIC_NEO_UI_BALANCED]
 
-أنت مستشار ذكي برتبة نظام ذكاء اصطناعي مستقبلي. قم بإعداد تقرير يومي احترافي، ومقسم بدقة إلى **4 أقسام رئيسية** بالأسلوب التالي:
+أنت مستشار ذكي برتبة نظام ذكاء اصطناعي مستقبلي. قم بإعداد تقرير يومي احترافي، ومنظم بدقة شديدة إلى **4 أقسام رئيسية** كالتالي:
 
 1. 🤖 AI & Machine Learning Trends
 2. 🩺 AI in Medicine & Clinical Practice
@@ -76,15 +72,13 @@ prompt = f"""
 
 - ممنوع استخدام علامة الشباك (#) أو النجوم المزدوجة (**) أو الماركداون القديم نهائياً.
 - استخدم أقواس سيبرانية وتصميم نقي ومرتب (مثل استخدام ◼ ، ─── ، 『 』 ، ⚡).
-- تفاصيل أعمق لكل نقطة: اجعل كل نقطة في الأقسام الثلاثة الأولى غنية بالتفاصيل وتحتوي على (اسم التقنية، فكرتها باختصار، وتطبيقها العملي أو فائدتها المباشرة) في جملتين أو ثلاث متصلة ومفهومة.
-- في القسم الرابع (🔬 PubMed Research Spotlight)، نظّم البيانات بتفاصيل كافية ومفيدة:
+- **تفاصيل متوازنة لكل نقطة:** في الأقسام الثلاثة الأولى، اجعل كل نقطة واضحة ومكثفة (تحتوي على اسم التقنية، شرح مبسط لآلية عملها، وفائدتها أو تطبيقها العملي المباشر في فقرة قصيرة ومنسقة لا تزيد عن 3 أسطر لكل نقطة).
+- في القسم الرابع (🔬 PubMed Research Spotlight)، نظّم البيانات بدقة وعمق عملي مناسب:
   ◼ [Research_Title]: [...]
   ◼ [Core_Idea]: [...]
   ◼ [Clinical_Outcome]: [...]
-- الشرح باللغة العربية الفصحى السلسة والمفهومة، مع إبقاء الـ Medical & Technical Terms باللغة الإنجليزية بوضوح داخل الجمل.
-- حافظ على أن يكون التقرير شاملاً ومرتباً في حدود 3000 حرف كحد أقصى.
-- في نهاية التقرير تماماً، اترك سطراً جديداً واكتب وصفاً قصيراً جداً باللغة الإنجليزية لتوليد صورة سيبرانية طبية معبرة عن تقرير اليوم بهذا الشكل بالضبط:
-[IMAGE_PROMPT: futuristic medical AI cyberpunk dashboard, neon blue and cyan lighting, hyperdetailed, 8k]
+- الشرح باللغة العربية الفصحى السلسة، مع إبقاء الـ Medical & Technical Terms باللغة الإنجليزية بوضوح داخل الجمل.
+- حافظ على أن يكون التقرير مرتباً ونظيفاً وموزعاً بشكل مريح للعين في حدود 3000 حرف.
 """
 
 def generate_report():
@@ -115,10 +109,6 @@ def generate_report():
     raise Exception("No working model found.")
 
 def send_telegram_message(text):
-    # تنظيف نص الرسالة وإزالة كود وصف الصورة حتى لا يظهر للمستخدم في الشات
-    if "[IMAGE_PROMPT:" in text:
-        text = text.split("[IMAGE_PROMPT:")[0].strip()
-        
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     max_length = 4000
     for i in range(0, len(text), max_length):
@@ -127,73 +117,9 @@ def send_telegram_message(text):
         res = requests.post(url, json=payload)
         print("Telegram message response:", res.json())
 
-def send_telegram_image(full_text):
-    # استخراج وصف الصورة الذي كتبه جيميناي
-    image_prompt = "futuristic medical AI cyberpunk dashboard, neon blue and cyan lighting, hyperdetailed"
-    match = re.search(r'\[IMAGE_PROMPT:\s*([^\]]+)\]', full_text)
-    if match:
-        image_prompt = match.group(1).strip()
-    
-    encoded_prompt = urllib.parse.quote(image_prompt)
-    image_url = f"https://image.pollinations.ai/prompt/{encoded_prompt}"
-    
-    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendPhoto"
-    payload = {
-        "chat_id": TELEGRAM_CHAT_ID,
-        "photo": image_url,
-        "caption": "⚡ [NEXUS_AI_VISUAL_FEED] - التوضيح البصري السيبراني لتقرير اليوم"
-    }
-    res = requests.post(url, json=payload)
-    print("Telegram image response:", res.json())
-
-def clean_text_for_audio(text):
-    if "[IMAGE_PROMPT:" in text:
-        text = text.split("[IMAGE_PROMPT:")[0].strip()
-    cleaned = re.sub(r'[#*`_~—\-+=|•⚡//\[\]{}◼───『』1️⃣2️⃣3️⃣4️⃣]', ' ', text)
-    return cleaned
-
-async def create_audio(text, filename="briefing.mp3"):
-    clean_text = clean_text_for_audio(text)
-    if not clean_text.strip():
-        clean_text = "تقرير المستشار الذكي اليومي."
-    voice = "ar-SA-ZahraNeural"
-    communicate = edge_tts.Communicate(clean_text, voice, rate="+2%")
-    await communicate.save(filename)
-
-def send_telegram_audio(filename="briefing.mp3"):
-    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendAudio"
-    if not os.path.exists(filename):
-        print("Audio file does not exist.")
-        return
-    with open(filename, "rb") as audio_file:
-        files = {"audio": audio_file}
-        data = {
-            "chat_id": TELEGRAM_CHAT_ID,
-            "title": f"Cyber Briefing - {today_date}",
-            "performer": "NEXUS AI",
-            "caption": "🎧 البودكاست السيبراني التفصيلي جاهز للاستماع!"
-        }
-        res = requests.post(url, data=data, files=files)
-        print("Audio response:", res.json())
-
 if __name__ == "__main__":
     report_text = generate_report()
     
-    # 1. إرسال التقرير المكتوب التفصيلي أولاً
+    # إرسال التقرير المكتوب المنظم والمفصل بدقة
     print("Sending text report...")
     send_telegram_message(report_text)
-    
-    # 2. إرسال الصورة السيبرانية المصاحبة للتقرير ثانياً
-    try:
-        print("Sending futuristic visual image...")
-        send_telegram_image(report_text)
-    except Exception as img_err:
-        print(f"Image sending skipped gracefully: {img_err}")
-    
-    # 3. توليد وإرسال الصوت ثالثاً مع حماية كاملة ضد الحظر
-    try:
-        print("Generating futuristic audio briefing...")
-        asyncio.run(create_audio(report_text))
-        send_telegram_audio()
-    except Exception as audio_err:
-        print(f"Audio generation skipped gracefully: {audio_err}")

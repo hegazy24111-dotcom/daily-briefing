@@ -1,4 +1,5 @@
 import os
+import re
 import requests
 import xml.etree.ElementTree as ET
 from datetime import datetime
@@ -13,7 +14,6 @@ genai.configure(api_key=GEMINI_API_KEY)
 today_date = datetime.now().strftime("%Y-%m-%d")
 day_of_year = datetime.now().timetuple().tm_yday
 
-# زوايا تركيز متغيرة يومياً لضمان عمق المعلومات وعدم تكرار نفس الأفكار التقليدية
 daily_angles = [
     "Focus on: Agentic AI Workflows, Clinical Decision Support Systems (CDSS) in Emergency/ICU, and Patient Acquisition Funnels.",
     "Focus on: Small Language Models (SLMs) & On-Device AI, AI in Radiology/Pathology Diagnostics, and Medical Personal Branding.",
@@ -21,12 +21,11 @@ daily_angles = [
     "Focus on: Multimodal AI Reasoning, AI-Assisted Precision Medicine & Genomics, and Conversion Rate Optimization (CRO) for Clinics.",
     "Focus on: AI Automation & API Integrations, Remote Patient Monitoring (RPM) & Wearable Algorithms, and Patient Retention Strategies.",
     "Focus on: Synthetic Data & Privacy-Preserving AI, AI in Triage & Clinical Workflow Optimization, and Short-Form Video Marketing for Doctors.",
-    "Focus on: Autonomous Coding/Research Agents, Early Biomarker Detection via Deep Learning, and Marketing Analytics & ROAS in Healthcare."
+    "Focus on: Autonomous Research Agents, Early Biomarker Detection via Deep Learning, and Marketing Analytics & ROAS in Healthcare."
 ]
 
 todays_angle = daily_angles[day_of_year % len(daily_angles)]
 
-# دالة مطورة لسحب بحث كامل (بما في ذلك النتائج والخلاصة والرابط) من PubMed
 def fetch_latest_pubmed_papers():
     try:
         search_url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi"
@@ -43,7 +42,6 @@ def fetch_latest_pubmed_papers():
         if not id_list:
             return "No recent data found. Use advanced clinical AI trial intelligence."
 
-        # اختيار بحث مختلف بناءً على اليوم لضمان التجدد
         selected_id = id_list[day_of_year % len(id_list)]
 
         fetch_url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi"
@@ -57,7 +55,6 @@ def fetch_latest_pubmed_papers():
         
         for article in root.findall(".//PubmedArticle"):
             title = article.findtext(".//ArticleTitle", default="")
-            journal = article.findtext(".//Journal/Title", default="Medical Journal")
             
             abstract_parts = []
             for elem in article.findall(".//AbstractText"):
@@ -68,7 +65,7 @@ def fetch_latest_pubmed_papers():
             abstract = " ".join(abstract_parts)
             if title and abstract:
                 pubmed_url = f"https://pubmed.ncbi.nlm.nih.gov/{selected_id}/"
-                return f"Title: {title}\nJournal: {journal}\nURL: {pubmed_url}\nFull Abstract: {abstract[:2500]}"
+                return f"Title: {title}\nURL: {pubmed_url}\nFull Abstract: {abstract[:2500]}"
         
         return "Recent clinical AI diagnostic research."
     except Exception as e:
@@ -78,121 +75,37 @@ def fetch_latest_pubmed_papers():
 pubmed_context = fetch_latest_pubmed_papers()
 
 prompt = f"""
-[SYSTEM: NEXUS_AI_CORE // V4.0]
-[DATE: {today_date}]
-[DIRECTIVE: HIGH_DENSITY_INTELLIGENCE_BRIEFING]
+أنت مستشار ذكي ومحترف في الذكاء الاصطناعي، التكنولوجيا الطبية، والتسويق الصحي.
+قم بإعداد تقرير يومي غني بالمعلومات القيمة والدقيقة، ومصمم باستخدام **Telegram HTML** النظيف والحديث.
 
-أنت الآن النظام الذكي "NEXUS_AI_CORE"، مستشار استراتيجي متقدم في تقنيات الـ AI، التكنولوجيا الطبية، والتسويق الصحي الرقمي.
-مهمتك إعداد تقرير استخباراتي يومي فائق الاحترافية، غني بالمعلومات الدقيقة والتطبيقية، ومصمم بواجهة سيبرانية (Futuristic UI) مريحة جداً للعين.
-
-زاوية التركيز الإجبارية لليوم لمنع التكرار السطحي:
+زاوية التركيز اليوم لمنع التكرار:
 {todays_angle}
 
 بيانات البحث العلمي المسحوبة اليوم من PubMed للقسم الرابع:
 {pubmed_context}
 
-⚠️ شروط جودة المعلومات (صارمة جداً):
-1. ممنوع الكلام الإنشائي أو التعريفات المدرسية المكررة؛ ادخل في صلب التقنية المتقدمة، كيف تعمل برمجياً أو علمياً، وكيف تُطبّق عملياً على أرض الواقع.
-2. في كل قسم من الأقسام الثلاثة الأولى، قدّم **نقطتين دسمتين (2 Deep-Dive Points)**؛ كل نقطة مقسمة شجرياً إلى: (الآلية التقنية/العلمية + التطبيق العملي المباشر أو الأثر الرقمي).
-3. في قسم PubMed، استخرج النتائج الفعلية والأثر الإكلينيكي من ملخص البحث المرفق بدقة، وضع رابط البحث في النهاية.
-4. اكتب بلغة عربية فصحى رصينة وسلسة، مع إبقاء جميع الـ Medical & Technical Terms باللغة الإنجليزية داخل السياق.
-5. ممنوع تماماً استخدام رموز الماركداون مثل النجوم (**) أو الشباك (#). التزم حرفياً بقالب التصميم السيبراني أدناه.
+شروط التنسيق والكتابة الصارمة جداً:
+1. استخدم فقط وسوم HTML المدعومة في تيليجرام التالية: <b> للخط العريض، <code> للكبسولات التقنية، <blockquote> للكروت المدمجة، و <a href="URL"> للروابط.
+2. ممنوع تماماً استخدام أي نجوم (**)، أو شبابيك (#)، أو خطوط طويلة (─── أو ━━━)، أو رموز شجرية (├─ أو ┏━━)، أو وسوم مثل <br> أو <p> أو ```html.
+3. اكتب بلغة عربية فصحى سلسة وواضحة، مع إبقاء المصطلحات التقنية والطبية باللغة الإنجليزية داخل الجمل.
+4. التزم حرفياً بهيكل القالب التالي وابدأ ردك فوراً بسطر العنوان الأول دون أي مقدمات:
 
-⚠️ القالب البصري الإجباري (ابدأ ردك فوراً من السطر الأول في القالب بدون أي كلمة قبله):
+<code>NEXUS BRIEFING</code> • <code>{today_date}</code>
 
-⚡ // [CYBER_BRIEFING] — {today_date}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+<code>01 // AI & MACHINE LEARNING</code>
 
-┏━━ 『 01 // 🤖 AI & MACHINE LEARNING 』
-┃
-◈ [اسم التقنية أو المنهجية الأولى بالإنجليزية]
-├─ 💡 الآلية: [شرح عميق ومكثف لآلية العمل في سطرين]
-╰─ 🎯 التطبيق: [مثال تطبيقي محدد أو فائدة عملية مباشرة]
+▫️ <b>[اسم التقنية الأولى بالإنجليزية]</b>
+<blockquote>[اشرح آلية عمل التقنية بعمق ووضوح في جملتين، ثم اذكر تطبيقها العملي المباشر]</blockquote>
 
-◈ [اسم التقنية أو المنهجية الثانية بالإنجليزية]
-├─ 💡 الآلية: [شرح عميق ومكثف لآلية العمل في سطرين]
-╰─ 🎯 التطبيق: [مثال تطبيقي محدد أو فائدة عملية مباشرة]
+▫️ <b>[اسم التقنية الثانية بالإنجليزية]</b>
+<blockquote>[اشرح آلية عمل التقنية بعمق ووضوح في جملتين، ثم اذكر تطبيقها العملي المباشر]</blockquote>
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+<code>02 // CLINICAL & MEDICAL AI</code>
 
-┏━━ 『 02 // 🩺 CLINICAL & MEDICAL AI 』
-┃
-◈ [اسم التقنية أو التطبيق السريري الأول بالإنجليزية]
-├─ 💡 الآلية: [شرح دقيق لكيفية عمل الخوارزمية طبياً وسريرياً]
-╰─ 🎯 الأثر الإكلينيكي: [كيف تغير قرار الطبيب أو تحسن نتائج المريض]
+▫️ <b>[اسم التقنية أو التطبيق السريري الأول بالإنجليزية]</b>
+<blockquote>[اشرح كيف تعمل هذه التقنية طبياً، وما هو أثرها الإكلينيكي المباشر في التشخيص أو العلاج]</blockquote>
 
-◈ [اسم التقنية أو التطبيق السريري الثاني بالإنجليزية]
-├─ 💡 الآلية: [شرح دقيق لكيفية عمل الخوارزمية طبياً وسريرياً]
-╰─ 🎯 الأثر الإكلينيكي: [كيف تغير قرار الطبيب أو تحسن نتائج المريض]
+▫️ <b>[اسم التقنية أو التطبيق السريري الثاني بالإنجليزية]</b>
+<blockquote>[اشرح كيف تعمل هذه التقنية طبياً، وما هو أثرها الإكلينيكي المباشر في التشخيص أو العلاج]</blockquote>
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-┏━━ 『 03 // 📈 MEDICAL & DIGITAL MARKETING 』
-┃
-◈ [اسم الاستراتيجية أو الأداة التسويقية الأولى بالإنجليزية]
-├─ 💡 التكتيك: [شرح الفكرة التسويقية وكيفية توظيف الذكاء الاصطناعي فيها]
-╰─ 🎯 خطوة تنفيذية: [نصيحة عملية قابلة للتطبيق لرفع الـ ROI أو الـ Conversion]
-
-◈ [اسم الاستراتيجية أو الأداة التسويقية الثانية بالإنجليزية]
-├─ 💡 التكتيك: [شرح الفكرة التسويقية وكيفية توظيف الذكاء الاصطناعي فيها]
-╰─ 🎯 خطوة تنفيذية: [نصيحة عملية قابلة للتطبيق لرفع الـ ROI أو الـ Conversion]
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-┏━━ 『 04 // 🔬 PUBMED RESEARCH SPOTLIGHT 』
-┃
-◼ [Title]: [عنوان البحث باللغة الإنجليزية كما ورد]
-├─ 🏛️ [Methodology & Idea]: [شرح فكرة الدراسة والمنهجية والمشكلة التي تحلها بتفصيل واضح]
-├─ 📊 [Key Findings]: [أهم النتائج التي توصلت إليها الدراسة من واقع الملخص]
-├─ 🩺 [Clinical Takeaway]: [الخلاصة التطبيقية: ماذا يستفيد الطبيب أو الباحث من هذه الورقة؟]
-╰─ 🔗 [Source]: [ضع رابط البحث URL المرفق هنا]
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-─── 『 STATUS: SYSTEM_OPTIMAL // END_TRANSMISSION 』 ───
-"""
-
-def generate_report():
-    available_models = [
-        m.name for m in genai.list_models() 
-        if 'generateContent' in m.supported_generation_methods and 'thinking' not in m.name.lower()
-    ]
-    available_models.sort(reverse=True)
-
-    for model_name in available_models:
-        try:
-            print(f"Trying model: {model_name}...")
-            model = genai.GenerativeModel(model_name)
-            response = model.generate_content(
-                prompt,
-                generation_config={"temperature": 0.7}
-            )
-            text = response.text
-            
-            # قص نظيف بدون تكرار الأقواس
-            if "[CYBER_BRIEFING]" in text:
-                text = "⚡ // [CYBER_BRIEFING]" + text.rsplit("[CYBER_BRIEFING]", 1)[-1]
-                
-            return text.strip()
-        except Exception as e:
-            print(f"Skipped {model_name} due to error: {e}")
-            continue
-            
-    raise Exception("No working model found.")
-
-def send_telegram_message(text):
-    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-    max_length = 4000
-    for i in range(0, len(text), max_length):
-        chunk = text[i:i + max_length]
-        payload = {
-            "chat_id": TELEGRAM_CHAT_ID,
-            "text": chunk,
-            "disable_web_page_preview": True # لمنع معاينة اللينك الضخمة أسفل الرسالة والحفاظ على نظافة التصميم
-        }
-        res = requests.post(url, json=payload)
-        print("Telegram message response:", res.json())
-
-if __name__ == "__main__":
-    report_text = generate_report()
-    print("Sending upgraded text report...")
-    send_telegram_message(report_text)
+<code>03 //

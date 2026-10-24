@@ -76,7 +76,7 @@ pubmed_context = fetch_latest_pubmed_papers()
 
 prompt = f"""
 أنت مستشار ذكي ومحترف في الذكاء الاصطناعي، التكنولوجيا الطبية، والتسويق الصحي.
-قم بإعداد تقرير يومي غني بالمعلومات القيمة والدقيقة، ومصمم باستخدام **Telegram HTML** النظيف والحديث.
+قم بإعداد تقرير يومي غني بالمعلومات القيمة والدقيقة، ومصمم باستخدام Telegram HTML النظيف والحديث.
 
 زاوية التركيز اليوم لمنع التكرار:
 {todays_angle}
@@ -86,7 +86,7 @@ prompt = f"""
 
 شروط التنسيق والكتابة الصارمة جداً:
 1. استخدم فقط وسوم HTML المدعومة في تيليجرام التالية: <b> للخط العريض، <code> للكبسولات التقنية، <blockquote> للكروت المدمجة، و <a href="URL"> للروابط.
-2. ممنوع تماماً استخدام أي نجوم (**)، أو شبابيك (#)، أو خطوط طويلة (─── أو ━━━)، أو رموز شجرية (├─ أو ┏━━)، أو وسوم مثل <br> أو <p> أو ```html.
+2. ممنوع تماماً استخدام أي نجوم (**)، أو شبابيك (#)، أو خطوط طويلة، أو رموز شجرية، أو وسوم غير مدعومة مثل <br> أو <p>.
 3. اكتب بلغة عربية فصحى سلسة وواضحة، مع إبقاء المصطلحات التقنية والطبية باللغة الإنجليزية داخل الجمل.
 4. التزم حرفياً بهيكل القالب التالي وابدأ ردك فوراً بسطر العنوان الأول دون أي مقدمات:
 
@@ -108,4 +108,81 @@ prompt = f"""
 ▫️ <b>[اسم التقنية أو التطبيق السريري الثاني بالإنجليزية]</b>
 <blockquote>[اشرح كيف تعمل هذه التقنية طبياً، وما هو أثرها الإكلينيكي المباشر في التشخيص أو العلاج]</blockquote>
 
-<code>03 //
+<code>03 // DIGITAL & MEDICAL MARKETING</code>
+
+▫️ <b>[اسم الاستراتيجية التسويقية الأولى بالإنجليزية]</b>
+<blockquote>[اشرح التكتيك التسويقي وكيفية تطبيقه عملياً لزيادة الـ Conversion Rate أو الـ ROI]</blockquote>
+
+▫️ <b>[اسم الاستراتيجية التسويقية الثانية بالإنجليزية]</b>
+<blockquote>[اشرح التكتيك التسويقي وكيفية تطبيقه عملياً لزيادة الـ Conversion Rate أو الـ ROI]</blockquote>
+
+<code>04 // PUBMED RESEARCH SPOTLIGHT</code>
+
+<blockquote>📄 <b>[عنوان البحث باللغة الإنجليزية]</b>
+
+• <b>الفكرة والمنهجية:</b> [اشرح فكرة الدراسة والمشكلة التي تعالجها بوضوح]
+• <b>أهم النتائج:</b> [اذكر النتائج الفعلية المستخلصة من الملخص]
+• <b>الخلاصة الإكلينيكية:</b> [كيف يستفيد الممارس الطبي أو الباحث من هذه النتائج؟]
+
+🔗 <a href="[ضع رابط URL الخاص بالبحث هنا]">قراءة الورقة البحثية على PubMed ↗</a></blockquote>
+"""
+
+def generate_report():
+    available_models = [
+        m.name for m in genai.list_models() 
+        if 'generateContent' in m.supported_generation_methods and 'thinking' not in m.name.lower()
+    ]
+    available_models.sort(reverse=True)
+
+    for model_name in available_models:
+        try:
+            print(f"Trying model: {model_name}...")
+            model = genai.GenerativeModel(model_name)
+            response = model.generate_content(
+                prompt,
+                generation_config={"temperature": 0.65}
+            )
+            text = response.text
+            
+            # تنظيف أي علامات كود زائدة قد يضيفها الموديل
+            backticks = chr(96) * 3
+            text = text.replace(backticks + "html", "").replace(backticks, "")
+            text = text.replace("**", "")
+            
+            if "<code>NEXUS BRIEFING</code>" in text:
+                text = "<code>NEXUS BRIEFING</code>" + text.rsplit("<code>NEXUS BRIEFING</code>", 1)[-1]
+                
+            return text.strip()
+        except Exception as e:
+            print(f"Skipped {model_name} due to error: {e}")
+            continue
+            
+    raise Exception("No working model found.")
+
+def send_telegram_message(text):
+    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+    max_length = 4000
+    for i in range(0, len(text), max_length):
+        chunk = text[i:i + max_length]
+        payload = {
+            "chat_id": TELEGRAM_CHAT_ID,
+            "text": chunk,
+            "parse_mode": "HTML",
+            "disable_web_page_preview": True
+        }
+        res = requests.post(url, json=payload).json()
+        print("Telegram HTML response:", res)
+        
+        if not res.get("ok"):
+            clean_fallback = re.sub(r'<[^>]+>', '', chunk)
+            fallback_payload = {
+                "chat_id": TELEGRAM_CHAT_ID,
+                "text": clean_fallback,
+                "disable_web_page_preview": True
+            }
+            requests.post(url, json=fallback_payload)
+
+if __name__ == "__main__":
+    report_text = generate_report()
+    print("Sending clean HTML report...")
+    send_telegram_message(report_text)
